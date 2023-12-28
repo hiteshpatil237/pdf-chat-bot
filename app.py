@@ -7,7 +7,6 @@ from langchain.vectorstores import faiss
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
 from langchain.chat_models import ChatOpenAI
-from langchain.llms import huggingface_hub
 from htmlTemplates import css, bot_template, user_template
 
 def get_pdf_text(pdf_docs):
@@ -32,13 +31,11 @@ def get_text_chunks(raw_text):
 
 def get_vector_store(text_chunks):
     embeddings = OpenAIEmbeddings()
-    # embeddings = HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-xl")
     vector_store = faiss.FAISS.from_texts(texts=text_chunks, embedding=embeddings)
     return vector_store
 
 def get_conversation_chain(vector_store):
-    # llm = ChatOpenAI()
-    llm = huggingface_hub.HuggingFaceHub(repo_id="google/flan-t5-xxl", model_kwargs={"temperature": 0.5, "max_length": 512})
+    llm = ChatOpenAI()
     memory = ConversationBufferMemory(memory_key='chat_history', return_messages=True)
     conversation_chain = ConversationalRetrievalChain.from_llm(
         llm=llm,
