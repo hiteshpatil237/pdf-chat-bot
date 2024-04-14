@@ -2,19 +2,26 @@ import streamlit as st
 from dotenv import load_dotenv
 from PyPDF2 import PdfReader
 from langchain.text_splitter import CharacterTextSplitter
-from langchain.embeddings import OpenAIEmbeddings, HuggingFaceInstructEmbeddings
+from langchain.embeddings import OpenAIEmbeddings
 from langchain.vectorstores import faiss
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
 from langchain.chat_models import ChatOpenAI
 from htmlTemplates import css, bot_template, user_template
+from streamlit_gsheets import GSheetsConnection
+import boto3
+import os
+
+def save_file_to_s3(file):
+    s3 = boto3.client('s3', aws_access_key_id=os.getenv("aws_access_key"), aws_secret_access_key=os.getenv("aws_secret_access_key"))
+    file.seek(0)
+    s3.upload_fileobj(file, os.getenv("aws_bucket"), file.name)
 
 def get_pdf_text(pdf_docs):
     text = ""
-    for pdf in pdf_docs:
-        pdf_reader = PdfReader(pdf)
-        for page in pdf_reader.pages:
-            text += page.extract_text()
+    pdf_reader = PdfReader(pdf_docs)
+    for page in pdf_reader.pages:
+        text += page.extract_text()
 
     return text
 
@@ -57,7 +64,7 @@ def handle_user_question(user_question):
 
 def main():
     load_dotenv()
-    st.set_page_config(page_title="PDF Chatbot", page_icon=":books:")
+    st.set_page_config(page_title="PDF Chatbot", page_icon=":books:")  
 
     st.write(css, unsafe_allow_html=True)
 
@@ -75,11 +82,12 @@ def main():
 
     with st.sidebar:
         st.subheader("Your PDFs")
-        pdf_docs = st.file_uploader("Upload your PDFs here and click on 'Process'", accept_multiple_files=True)
+        pdf_docs = st.file_uploader("Upload your PDFs here and click on 'Process'")
         if st.button("Process"):
             with st.spinner("Processing"):
                 raw_text = get_pdf_text(pdf_docs)
-
+                save_file_to_s3(pdf_docs)
+                
                 text_chunks = get_text_chunks(raw_text)
 
                 vector_store = get_vector_store(text_chunks)
