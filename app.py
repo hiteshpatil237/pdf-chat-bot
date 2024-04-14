@@ -8,7 +8,6 @@ from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
 from langchain.chat_models import ChatOpenAI
 from htmlTemplates import css, bot_template, user_template
-from streamlit_gsheets import GSheetsConnection
 import boto3
 import os
 
@@ -87,7 +86,7 @@ def main():
             with st.spinner("Processing"):
                 raw_text = get_pdf_text(pdf_docs)
                 save_file_to_s3(pdf_docs)
-                
+
                 text_chunks = get_text_chunks(raw_text)
 
                 vector_store = get_vector_store(text_chunks)
