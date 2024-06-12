@@ -57,4 +57,4 @@ To set up the application, follow these steps:
 
 ## Live Demo
 
-**This app is hosted on**: pdf-data-analyzer.streamlit.app
+**This app is hosted on**: https://pdf-data-analyzer.streamlit.app/
