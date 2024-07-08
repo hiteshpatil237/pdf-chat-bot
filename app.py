@@ -52,8 +52,12 @@ def get_conversation_chain(vector_store):
     return conversation_chain
 
 def handle_user_question(user_question):
+    st.write("User Question: ", user_question)
     response = st.session_state.conversation({'question': user_question})
     st.session_state.chat_history = response['chat_history']
+    
+    # Log the response
+    st.write("LLM Response: ", response)
 
     for i, message in enumerate(st.session_state.chat_history):
         if i % 2 == 0:
@@ -81,17 +85,19 @@ def main():
 
     with st.sidebar:
         st.subheader("Your PDFs")
-        pdf_docs = st.file_uploader("Upload your PDFs here and click on 'Process'")
+        pdf_docs = st.file_uploader("Upload your PDFs here and click on 'Process'", type=["pdf"], accept_multiple_files=True)
         if st.button("Process"):
-            with st.spinner("Processing"):
-                raw_text = get_pdf_text(pdf_docs)
-                save_file_to_s3(pdf_docs)
+            if pdf_docs is not None:
+                with st.spinner("Processing"):
+                    raw_text = ""
+                    for pdf in pdf_docs:
+                        raw_text += get_pdf_text(pdf)
 
-                text_chunks = get_text_chunks(raw_text)
+                    text_chunks = get_text_chunks(raw_text)
 
-                vector_store = get_vector_store(text_chunks)
+                    vector_store = get_vector_store(text_chunks)
 
-                st.session_state.conversation = get_conversation_chain(vector_store)
+                    st.session_state.conversation = get_conversation_chain(vector_store)
 
 if __name__ == '__main__':
     main()
