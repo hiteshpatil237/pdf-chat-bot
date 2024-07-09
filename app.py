@@ -3,10 +3,10 @@ from dotenv import load_dotenv
 from PyPDF2 import PdfReader
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.embeddings import OpenAIEmbeddings
-from langchain.vectorstores import faiss
+from langchain.chat_models import ChatOpenAI
+from langchain_community.vectorstores import FAISS
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
-from langchain.chat_models import ChatOpenAI
 from htmlTemplates import css, bot_template, user_template
 import boto3
 import os
@@ -37,15 +37,17 @@ def get_text_chunks(raw_text):
 
 def get_vector_store(text_chunks):
     embeddings = OpenAIEmbeddings()
-    vector_store = faiss.FAISS.from_texts(texts=text_chunks, embedding=embeddings)
+    vector_store = FAISS.from_texts(texts=text_chunks, embedding=embeddings)
     return vector_store
 
 def get_conversation_chain(vector_store):
     llm = ChatOpenAI()
-    memory = ConversationBufferMemory(memory_key='chat_history', return_messages=True)
+    memory = ConversationBufferMemory(memory_key='chat_history', return_messages=True, output_key='answer')
+    retriever = vector_store.as_retriever()
     conversation_chain = ConversationalRetrievalChain.from_llm(
         llm=llm,
-        retriever=vector_store.as_retriever(),
+        return_source_documents=True,
+        retriever=retriever,
         memory=memory
     )
 
@@ -54,10 +56,20 @@ def get_conversation_chain(vector_store):
 def handle_user_question(user_question):
     st.write("User Question: ", user_question)
     response = st.session_state.conversation({'question': user_question})
-    st.session_state.chat_history = response['chat_history']
+    print("Response: ", response)
     
+    # Separate the 'answer' and 'source_documents'
+    answer = response.get('answer', None)
+    source_documents = response.get('source_documents', None)
+    
+    # Store them in Streamlit state
+    st.session_state.answer = answer
+    st.session_state.source_documents = source_documents
+    st.session_state.chat_history = response['chat_history']
+
     # Log the response
-    st.write("LLM Response: ", response)
+    st.write("LLM Response: ", answer)
+    st.write("Source Documents: ", source_documents)
 
     for i, message in enumerate(st.session_state.chat_history):
         if i % 2 == 0:
@@ -67,7 +79,7 @@ def handle_user_question(user_question):
 
 def main():
     load_dotenv()
-    st.set_page_config(page_title="PDF Chatbot", page_icon=":books:")  
+    st.set_page_config(page_title="Retrieval Augmented Generation", page_icon=":books:")  
 
     st.write(css, unsafe_allow_html=True)
 
@@ -77,7 +89,7 @@ def main():
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = None
 
-    st.header("PDF Chatbot :books:")
+    st.header("Retrieval Augmented Generation :books:")
     user_question = st.text_input("Ask a question about the inputted pdfs: ")
 
     if user_question:
@@ -98,6 +110,7 @@ def main():
                     vector_store = get_vector_store(text_chunks)
 
                     st.session_state.conversation = get_conversation_chain(vector_store)
+                    print("state: ", st.session_state.conversation)
 
 if __name__ == '__main__':
     main()
